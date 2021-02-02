@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/gorilla/mux"
 	"gorm.io/driver/sqlite"
@@ -20,22 +21,14 @@ type Product struct {
 
 func main() {
 	// ORM stuff..
-	db, dbError := gorm.Open(sqlite.Open("file::memory:?cache=shared"), &gorm.Config{})
+	db, dbError := gorm.Open(sqlite.Open("test.db"), &gorm.Config{})
 	if dbError != nil {
 		log.Fatalf("Failed to open DB: %s\n", dbError.Error())
 	}
-
 	migrateErr := db.AutoMigrate(&Product{})
 	if migrateErr != nil {
 		log.Fatalf("Failed to migrate schema: %s\n", migrateErr.Error())
 	}
-
-	// Create test item
-	db.Create(&Product{
-		Code:  "C15",
-		Name:  "TestProduct",
-		Price: 32,
-	})
 
 	// Router setup...
 	r := mux.NewRouter()
@@ -50,9 +43,18 @@ func main() {
 	r.HandleFunc("/products/{key}", func(w http.ResponseWriter, r *http.Request) {
 		vars := mux.Vars(r)
 		var product Product
-		db.First(&product, "code = ?", vars["key"])
+		result := db.First(&product, "code = ?", vars["key"])
+
+		// For response
 		e := json.NewEncoder(w)
-		encodeError := e.Encode(product)
+		var encodeError error
+
+		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+			encodeError = e.Encode(map[string]string{"error": "Record not found"})
+		} else {
+			encodeError = e.Encode(product)
+		}
+
 		if encodeError != nil {
 			log.Printf("An error occured during encoding: %s\n", encodeError.Error())
 		}
