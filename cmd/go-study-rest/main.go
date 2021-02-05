@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"github.com/gorilla/mux"
 	"go_study_rest_api/pkg/db"
 	"go_study_rest_api/pkg/models"
@@ -16,14 +15,6 @@ import (
 func main() {
 	// Router setup...
 	r := mux.NewRouter()
-	r.HandleFunc("/", mainTest)
-	r.HandleFunc("/api/health", func(w http.ResponseWriter, r *http.Request) {
-		e := json.NewEncoder(w)
-		encodeError := e.Encode(map[string]bool{"ok": true})
-		if encodeError != nil {
-			log.Printf("An error occured during healthcheck: %s\n", encodeError.Error())
-		}
-	})
 	r.HandleFunc("/students/{name}", getStudent).Methods("GET")
 	//r.HandleFunc("/students/{name}", newStudent).Methods("POST")
 
@@ -36,15 +27,6 @@ func main() {
 	}
 	log.Println("Server is starting...")
 	log.Fatal(srv.ListenAndServe())
-}
-
-// Function for testing router
-func mainTest(w http.ResponseWriter, _ *http.Request) {
-	w.WriteHeader(http.StatusOK)
-	_, writeErr := fmt.Fprint(w, "Hi!")
-	if writeErr != nil {
-		log.Printf("An error occured while executing 'mainTest' func: %s\n", writeErr.Error())
-	}
 }
 
 func getStudent(w http.ResponseWriter, r *http.Request) {
