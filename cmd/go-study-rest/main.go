@@ -3,11 +3,9 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"github.com/gorilla/mux"
 	"go_study_rest_api/pkg/db"
 	"go_study_rest_api/pkg/models"
-	"gorm.io/gorm"
 	"log"
 	"net/http"
 	"os"
@@ -18,8 +16,10 @@ import (
 func main() {
 	// Router setup...
 	r := mux.NewRouter()
+	//r.HandleFunc("/students/", newStudent).Methods("GET")
+	r.HandleFunc("/students/", newStudent).Methods("POST")
 	r.HandleFunc("/students/{name}", getStudent).Methods("GET")
-	r.HandleFunc("/students/{name}", newStudent).Methods("POST")
+	r.HandleFunc("/students/{name}", updateStudent).Methods("PUT")
 
 	// Server setup...
 	srv := &http.Server{
@@ -35,9 +35,9 @@ func main() {
 		}
 	}()
 
+	// Graceful shutdown
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt)
-
 	<-c
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*15)
 	defer cancel()
@@ -49,36 +49,61 @@ func main() {
 }
 
 func getStudent(w http.ResponseWriter, r *http.Request) {
+	// Find
 	vars := mux.Vars(r)
 	var student models.Student
-	result := db.DB.First(&student, "firstname = ?", vars["name"])
-
-	// For response
-	e := json.NewEncoder(w)
-	var encodeError error
-
-	if errors.Is(result.Error, gorm.ErrRecordNotFound) {
-		http.Error(w, gorm.ErrRecordNotFound.Error(), http.StatusNotFound)
-	} else {
-		encodeError = e.Encode(student)
+	findError := models.FindFirstStudent(db.DB, &student, vars["name"])
+	if findError != nil {
+		http.Error(w, findError.Error(), http.StatusNotFound)
+		return
 	}
 
+	// Encode
+	e := json.NewEncoder(w)
+	encodeError := e.Encode(student)
 	if encodeError != nil {
 		log.Printf("An error occured during encoding: %s\n", encodeError.Error())
+		http.Error(w, encodeError.Error(), http.StatusInternalServerError)
+		return
 	}
+
+	w.WriteHeader(http.StatusOK)
 }
 
 func newStudent(w http.ResponseWriter, r *http.Request) {
+	// Decode
 	var s models.Student
 	decodeError := json.NewDecoder(r.Body).Decode(&s)
 	if decodeError != nil {
 		http.Error(w, decodeError.Error(), http.StatusBadRequest)
-	} else {
-		result := db.DB.Create(&s)
-		if result.Error != nil {
-			http.Error(w, result.Error.Error(), http.StatusInternalServerError)
-		} else {
-			w.WriteHeader(http.StatusCreated)
-		}
+		return
 	}
+
+	// Create
+	createError := models.CreateStudent(db.DB, &s)
+	if createError != nil {
+		http.Error(w, createError.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusCreated)
+}
+
+func updateStudent(w http.ResponseWriter, r *http.Request) {
+	// Decode
+	var s models.Student
+	decodeError := json.NewDecoder(r.Body).Decode(&s)
+	if decodeError != nil {
+		http.Error(w, decodeError.Error(), http.StatusBadRequest)
+		return
+	}
+
+	// Update
+	updateError := models.SaveStudent(db.DB, &s) // TODO: update correctly
+	if updateError != nil {
+		http.Error(w, updateError.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
 }
