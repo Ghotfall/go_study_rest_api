@@ -25,10 +25,6 @@ func (s *Student) BeforeCreate(_ *gorm.DB) (err error) {
 	return
 }
 
-func (s *Student) BeforeUpdate(tx *gorm.DB) (err error) {
-	return s.BeforeCreate(tx)
-}
-
 // CRUD
 func CreateStudent(db *gorm.DB, s *Student) error {
 	result := db.Create(s)
@@ -48,7 +44,20 @@ func FindFirstStudent(db *gorm.DB, s *Student, name string) error {
 	return nil
 }
 
+func GetAllStudent(db *gorm.DB, s *[]Student) error {
+	result := db.Find(s)
+	if result.Error != nil {
+		return result.Error
+	}
+
+	return nil
+}
+
 func SaveStudent(db *gorm.DB, s *Student) error {
+	////
+	//var tempStudent Student
+	//findError := FindFirstStudent(db, &tempStudent, name)
+
 	result := db.Save(s)
 	if result.Error != nil {
 		return result.Error

@@ -16,7 +16,7 @@ import (
 func main() {
 	// Router setup...
 	r := mux.NewRouter()
-	//r.HandleFunc("/students/", newStudent).Methods("GET")
+	r.HandleFunc("/students/", listStudent).Methods("GET")
 	r.HandleFunc("/students/", newStudent).Methods("POST")
 	r.HandleFunc("/students/{name}", getStudent).Methods("GET")
 	r.HandleFunc("/students/{name}", updateStudent).Methods("PUT")
@@ -46,6 +46,27 @@ func main() {
 		log.Println(shutdownError.Error())
 	}
 	os.Exit(0)
+}
+
+func listStudent(w http.ResponseWriter, _ *http.Request) {
+	// Get
+	var students []models.Student
+	getError := models.GetAllStudent(db.DB, &students)
+	if getError != nil {
+		http.Error(w, getError.Error(), http.StatusNotFound)
+		return
+	}
+
+	// Encode
+	e := json.NewEncoder(w)
+	encodeError := e.Encode(students)
+	if encodeError != nil {
+		log.Printf("An error occured during encoding: %s\n", encodeError.Error())
+		http.Error(w, encodeError.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
 }
 
 func getStudent(w http.ResponseWriter, r *http.Request) {
