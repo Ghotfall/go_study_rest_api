@@ -18,8 +18,8 @@ func main() {
 	r := mux.NewRouter()
 	r.HandleFunc("/students/", listStudent).Methods("GET")
 	r.HandleFunc("/students/", newStudent).Methods("POST")
-	r.HandleFunc("/students/{name}", getStudent).Methods("GET")
-	r.HandleFunc("/students/{name}", updateStudent).Methods("PUT")
+	r.HandleFunc("/students/{id:[0-9]+}", getStudent).Methods("GET")    // TODO: update method
+	r.HandleFunc("/students/{id:[0-9]+}", updateStudent).Methods("PUT") // TODO: update method
 
 	// Server setup...
 	srv := &http.Server{
@@ -48,27 +48,6 @@ func main() {
 	os.Exit(0)
 }
 
-func listStudent(w http.ResponseWriter, _ *http.Request) {
-	// Get
-	var students []models.Student
-	getError := models.GetAllStudent(db.DB, &students)
-	if getError != nil {
-		http.Error(w, getError.Error(), http.StatusNotFound)
-		return
-	}
-
-	// Encode
-	e := json.NewEncoder(w)
-	encodeError := e.Encode(students)
-	if encodeError != nil {
-		log.Printf("An error occured during encoding: %s\n", encodeError.Error())
-		http.Error(w, encodeError.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	w.WriteHeader(http.StatusOK)
-}
-
 func getStudent(w http.ResponseWriter, r *http.Request) {
 	// Find
 	vars := mux.Vars(r)
@@ -82,6 +61,27 @@ func getStudent(w http.ResponseWriter, r *http.Request) {
 	// Encode
 	e := json.NewEncoder(w)
 	encodeError := e.Encode(student)
+	if encodeError != nil {
+		log.Printf("An error occured during encoding: %s\n", encodeError.Error())
+		http.Error(w, encodeError.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+}
+
+func listStudent(w http.ResponseWriter, _ *http.Request) {
+	// Get
+	var students []models.Student
+	getError := models.GetAllStudent(db.DB, &students)
+	if getError != nil {
+		http.Error(w, getError.Error(), http.StatusNotFound)
+		return
+	}
+
+	// Encode
+	e := json.NewEncoder(w)
+	encodeError := e.Encode(students)
 	if encodeError != nil {
 		log.Printf("An error occured during encoding: %s\n", encodeError.Error())
 		http.Error(w, encodeError.Error(), http.StatusInternalServerError)
@@ -107,6 +107,12 @@ func newStudent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	encodeError := json.NewEncoder(w).Encode(s)
+	if encodeError != nil {
+		log.Printf("An error occured during encoding: %s\n", encodeError.Error())
+		http.Error(w, encodeError.Error(), http.StatusInternalServerError)
+		return
+	}
 	w.WriteHeader(http.StatusCreated)
 }
 
